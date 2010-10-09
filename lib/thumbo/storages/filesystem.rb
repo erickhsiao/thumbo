@@ -15,6 +15,7 @@ module Thumbo
       File.read(calculate_path(filename))
 
     rescue Errno::ENOENT
+      puts "ERRNO::ENOENT #{filename} can't be found"
       raise_file_not_found(filename)
 
     end
