@@ -30,11 +30,6 @@ module Thumbo
 
     # is this helpful or not?
     def release(*o)
-      #begin
-      #  self.destroy!
-      #rescue Exception=>e
-#	puts "Error Release with #{e}"
- #     end
       @image = nil
       GC.start
       #owner.destroy_and_update_checksum(owner,o[0]) if o.length>0
@@ -59,15 +54,19 @@ module Thumbo
 
     # create thumbnails in the image list (Magick::ImageList)
     def create(*custom_width)
-      return if title == :original
+      return if title == :original || title == :raw
       release
+      puts "c1"
       cw=(custom_width && custom_width.length>0) ? custom_width[0] : 0
+      puts "c2"
       limit=cw>0 ? cw : owner.class.thumbo_common[title]
+      puts "c3"
       begin
 	#owner.remove_labels_files(owner.id,Photo.thumbo_labels[title]) if title!=:original
       rescue Exception=>e
 	puts e
       end
+      puts "c4"
       if title.to_s.match(/square/)
         create_square(limit)
 
@@ -114,7 +113,6 @@ module Thumbo
 
     # owner delegate
     def filename
-      puts "FileName ==>>>>#{owner.thumbo_filename} #{self}"
       owner.thumbo_filename self
     end
 
@@ -161,14 +159,12 @@ module Thumbo
     def create_common limit
       # can't use map since it have different meaning to collect here
       type= owner.rotate_cal.to_s=="0" ? "raw".to_sym : "original".to_sym
-      puts("Using type #{type}  #{owner.id}")
-      img=""
-      img=Photo.thumbo_storage.read("#{owner.id}_#{type.to_s}.#{handle_ext(owner.content_type)}")
+      puts "cc1"
       self.image = owner.thumbos[type].image.collect{ |layer|
-	#img=layer
 	puts "cc2 limit?#{limit} self?#{self}"
         # i hate column and row!! nerver remember which is width...
         new_dimension = Thumbo.calculate_dimension(limit, layer.columns, layer.rows)
+	puts "cc3"
         # no need to scale
         if new_dimension == dimension(layer)
           layer
@@ -178,54 +174,17 @@ module Thumbo
           layer.scale(*new_dimension)
 
         end
-	
-        #puts "cc-done"
+	#puts "cc4"
       }
-      puts ""
-      begin
-         puts("~~~~~thumbo~Trying to save file of image in memory. #{owner.id}")
-         Dir.chdir("/home/photo/tmp/images/")
-         ans = StringIO.new(img)
-         ans=write(img)
-         file=File.new("from_thumbo_#{self.id}_raw." +handle_ext(self.content_type)+"?#{Time.now.strftime('%Y%m%d%H%M%S')}","w+")
-         file.write(ans.string)
-         file.close
-      rescue Exception => e
-         puts("~~~~~~Test Error #{e}")
-      end
-      puts ""
-
-      self.image
     end
 
     def create_square limit
       type= owner.rotate_cal.to_s=="0" ? "raw".to_sym : "original".to_sym
-      puts("Using type #{type}  #{owner.id}")
-      img=""
-      img=Photo.thumbo_storage.read("#{owner.id}_#{type.to_s}.#{handle_ext(owner.content_type)}")
       self.image = owner.thumbos[type].image.collect{ |layer|
         layer.crop_resized(limit, limit).enhance
       }
-
-      puts ""
-      begin
-        puts("~~~~~tumbo square~Trying to save file of image in memory.  #{owner.id}")
-        Dir.chdir("/home/photo/tmp/images/")
-        ans = StringIO.new(img)
-        ans=write(img)
-        file=File.new("from_thumbo_#{self.id}_raw." +handle_ext(self.content_type)+"?#{Time.now.strftime('%Y%m%d%H%M%S')}","w+")
-        file.write(ans.string)
-        file.close
-      rescue Exception => e
-        puts("~~~~~~Test Error #{e}")
-      end
-      puts ""
-
-      self.image
     end
-    def handle_ext (ext)
-       return ext.split('/')[1].gsub('jpeg','jpg').gsub('JPEG','JPG')
-    end
+
     private
     # fetch image from storage to memory
     # raises Magick::ImageMagickError
